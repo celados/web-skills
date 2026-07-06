@@ -26,9 +26,10 @@ Classify what the flow claims changed:
 - Read the smallest set of rows or API resources that proves the claim.
 - Include status, owner/account, source input, timestamps, and relevant linked
   records.
-- Distinguish transient from terminal states. A queued job is not failure if the
-  flow only promises that work was accepted.
-- Do not mutate data while verifying unless the user explicitly asked for repair.
+- Distinguish transient from terminal states. A queued job can pass when the
+  flow promises only that work was accepted.
+- Keep verification read-only by default. Run repair or mutation steps only
+  after the user explicitly asks for them.
 
 ## Snapshot Pattern
 
@@ -54,8 +55,8 @@ A good snapshot command returns a joined projection:
 }
 ```
 
-The projection is for testing and support. It should not become a new source of
-truth; it only reads durable facts owned elsewhere.
+Use the projection for testing and support. Keep the owning tables, APIs, or
+provider records as the source of truth.
 
 ## Common Mistakes
 

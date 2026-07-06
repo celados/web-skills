@@ -19,9 +19,10 @@ A web flow passes only when the browser-visible state and durable backend state
 agree. The browser proves what a user could see and do. The CLI and backend
 snapshots prove what the product actually persisted.
 
-This skill is for product-development flow tests, not for replacing a full E2E
-test suite. Prefer it when an agent needs to verify a real workflow quickly,
-repeatably, and with enough evidence for an engineer to trust the result.
+Use this skill for product-development flow tests as a fast, evidence-rich
+complement to a full E2E test suite. Prefer it when an agent needs to verify a
+real workflow quickly, repeatably, and with enough evidence for an engineer to
+trust the result.
 
 When using this repository from source, `examples/web-flow-testing-demo` is a
 runnable end-to-end implementation of this contract. It contains a Vite SPA, an
@@ -34,7 +35,8 @@ runnable end-to-end implementation of this contract. It contains a Vite SPA, an
    - Flow examples: sign in redirect, submit form, checkout, project creation,
      workspace edit, async job completion, entitlement unlock, source download.
    - Environment examples: local, preview, staging, test. Treat production as
-     read-only unless the user explicitly asks for a production write.
+     read-only by default; run production writes only after an explicit
+     production-write request.
 
 2. Validate the environment before driving the UI.
    - For local work, confirm the dev server is running or start the canonical
@@ -46,16 +48,19 @@ runnable end-to-end implementation of this contract. It contains a Vite SPA, an
 3. Prepare a test identity.
    - Reuse a stable fake test account when available.
    - If missing, create or repair it through the project's supported adapter.
-   - Never use personal credentials, real payment methods, or copied session
-     cookies in an agent chat.
+   - Use prepared test credentials, provider test fixtures, and supported auth
+     adapters for agent-run flows.
    - Read `references/test-identities.md` when auth, signup, email verification,
      API keys, org membership, or cleanup is part of the flow.
 
 4. Drive the smallest browser path that proves the user journey.
    - When running inside Codex, prefer the Codex in-app Browser for the
-     visible user flow. Use Playwright or Chrome automation only when the
-     in-app Browser is not available, when repeatable local/CI smoke is needed,
-     or when viewport/console checks are easier to automate.
+     visible user flow. If the Browser plugin is available, read its
+     `browser:control-in-app-browser` skill first; its entry point may be
+     exposed through `node_repl js` and a browser-client bootstrap rather than
+     direct browser MCP tools. Use Playwright or Chrome automation for
+     repeatable local/CI smoke, viewport/console checks, or after the Browser
+     skill bootstrap/troubleshooting confirms another surface is required.
    - Start from a clean route.
    - Capture final URL, public IDs, visible status, relevant screenshots or DOM
      evidence, and blocking console/network errors.
@@ -80,10 +85,10 @@ runnable end-to-end implementation of this contract. It contains a Vite SPA, an
 - Mutating CLI commands should dry-run by default and require an explicit
   `--execute`, `--confirm`, or equivalent flag.
 - Payment tests use only provider test mode and documented test cards or tokens.
-- Do not enter saved wallets, Link, Apple Pay, real cards, or personal account
-  credentials during automated tests.
-- Do not print secrets, deploy keys, env files, raw cookies, OAuth tokens, magic
-  links, or full payment identifiers in the final report.
+- Keep saved wallets, Link, Apple Pay, real cards, and personal account
+  credentials outside automated tests.
+- Redact secrets, deploy keys, env files, raw cookies, OAuth tokens, magic
+  links, and payment identifiers in the final report.
 
 ## Reference Lookup
 

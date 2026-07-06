@@ -37,14 +37,14 @@ Use it as a small model for how browser evidence and CLI evidence should meet.
 - Safe writes: write actions default to dry-run and require explicit execution.
 - Environment explicitness: every hosted command takes an environment/profile
   selector or proves which deployment it is using.
-- Small snapshots: return the facts needed for the current flow, not a whole
-  database dump.
+- Small snapshots: return the facts needed for the current flow in a compact
+  projection.
 - Stable public IDs: include user-visible public IDs and internal IDs only when
   useful for the operator.
 
 ## Example Shape
 
-These are examples, not a required naming scheme:
+These are illustrative examples; adapt names to the project:
 
 ```bash
 app-cli env validate --env test --profile default --json

@@ -46,7 +46,7 @@ awaiting-settlement state that matches the UI.
 4. Wait for the UI to leave the payment confirmation state.
 5. Snapshot order, payment/settlement attempt, entitlement, request, and job.
 
-Do not use real cards, wallets, or production customer accounts.
+Use documented test payment fixtures and test-mode accounts.
 
 ## Async Job Or Workspace Flow
 
@@ -69,5 +69,5 @@ different flows.
 5. Snapshot artifact metadata, ownership, release/current pointer, and access
    grant.
 
-Do not treat a visible button as proof that the artifact exists or that access
-policy is correct.
+Treat a visible button as UI evidence, then verify artifact existence and access
+policy through durable state.

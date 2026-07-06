@@ -1,7 +1,7 @@
 # Test Identities
 
-Treat test users as development infrastructure. A flow test should not depend on
-whatever personal account happens to be logged in.
+Treat test users as development infrastructure. Run flow tests with prepared
+test identities rather than whatever personal account happens to be logged in.
 
 ## Lifecycle
 
@@ -14,8 +14,8 @@ snapshot show auth user, app user/account, memberships, credits, entitlements
 cleanup  disable or delete disposable identities when appropriate
 ```
 
-`ensure` should be idempotent. Rerunning a smoke test should not create a new
-account every time unless the flow specifically requires a fresh signup.
+`ensure` should be idempotent. Rerunning a smoke test should reuse the existing
+account, with fresh accounts reserved for flows that specifically test signup.
 
 ## Identity Types
 
@@ -30,23 +30,23 @@ Use the smallest identity that proves the flow:
 
 ## Adapter Boundary
 
-The skill does not mandate a provider. Implement the lifecycle through the
-project's auth adapter:
+Use a provider-agnostic lifecycle and implement it through the project's auth
+adapter:
 
 - Better Auth, Auth.js, Clerk, Auth0, Supabase Auth, Firebase Auth, Cognito, or
   a custom auth table can all work.
 - The adapter should expose the same operator facts: auth user id, email,
   verification status, app account id, memberships, and relevant entitlements.
-- Provider-specific write paths belong in project CLI commands, not in the
-  generic browser recipe.
+- Provider-specific write paths belong in project CLI commands. Keep generic
+  browser recipes provider-neutral.
 
 ## Safety
 
 - Use fake domains such as `example.com` unless the product requires real email
   delivery.
-- Do not ask the user to paste session cookies, magic links, OAuth tokens, or
-  passwords from a personal account into chat.
-- Do not use production customer accounts for write tests.
+- Use supported test-auth setup paths instead of chat-pasted session cookies,
+  magic links, OAuth tokens, or personal passwords.
+- Use fake, staging, or operator-controlled accounts for write tests.
 - If production inspection is necessary, read snapshots only and redact private
   data in the final report.
 - For email-delivery tests, use a single operator-controlled recipient and state
