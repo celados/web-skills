@@ -21,6 +21,13 @@ artifact snapshot
 
 Project names can vary. The contract matters more than the exact verbs.
 
+## Runnable Reference
+
+This repository includes a Vite SPA reference app at
+`examples/web-flow-testing-demo`. It implements these command families with
+`argc` and shares state with the browser UI through `.demo-state/state.json`.
+Use it as a small model for how browser evidence and CLI evidence should meet.
+
 ## Required Properties
 
 - Non-interactive: all input comes from flags, stdin JSON, or env vars.

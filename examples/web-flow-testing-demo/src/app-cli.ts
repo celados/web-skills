@@ -1,0 +1,171 @@
+import { existsSync } from "node:fs";
+
+import { cli, parseArgv } from "argc";
+
+import { cliOptions, schema } from "./cli-schema";
+import {
+  assertFlowStatus,
+  createRequest,
+  ensureUser,
+  getFlowSnapshot,
+  getUserSnapshot,
+  readState,
+  resetState,
+  stateFilePath,
+} from "./state";
+
+type CliContext = {
+  pretty: boolean;
+};
+
+type HandlerArgs<T> = {
+  input: T;
+  context: CliContext;
+};
+
+type Output<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: { code: string; message: string; hint?: string } };
+
+const parsedArgv = parseArgv(process.argv.slice(2));
+const app = cli(schema, {
+  ...cliOptions,
+  context: () => ({
+    pretty: parsedArgv.flags.pretty === true,
+  }),
+});
+
+try {
+  await app.run({
+    handlers: {
+      env: {
+        validate: handleEnvValidate,
+        reset: handleEnvReset,
+      },
+      user: {
+        ensure: handleUserEnsure,
+        snapshot: handleUserSnapshot,
+      },
+      flow: {
+        seed: handleFlowSeed,
+        snapshot: handleFlowSnapshot,
+        assert: handleFlowAssert,
+      },
+    },
+  });
+} catch (error) {
+  printError(error);
+  process.exitCode = 1;
+}
+
+async function handleEnvValidate(args: HandlerArgs<Record<string, never>>) {
+  const state = readState();
+  printSuccess(args.context, {
+    environment: state.environment,
+    appBaseUrl: state.appBaseUrl,
+    stateFile: stateFilePath,
+    stateFilePresent: existsSync(stateFilePath),
+    userCount: Object.keys(state.users).length,
+    requestCount: Object.keys(state.requests).length,
+  });
+}
+
+async function handleEnvReset(args: HandlerArgs<{ execute?: boolean }>) {
+  if (!args.input.execute) {
+    printSuccess(args.context, {
+      dryRun: true,
+      stateFile: stateFilePath,
+      action: "reset_state",
+    });
+    return;
+  }
+  const state = resetState();
+  printSuccess(args.context, {
+    dryRun: false,
+    stateFile: stateFilePath,
+    state,
+  });
+}
+
+async function handleUserEnsure(args: HandlerArgs<{ email: string; name?: string; execute?: boolean }>) {
+  printSuccess(
+    args.context,
+    ensureUser({
+      email: args.input.email,
+      name: args.input.name,
+      execute: args.input.execute === true,
+    }),
+  );
+}
+
+async function handleUserSnapshot(args: HandlerArgs<{ email: string }>) {
+  printSuccess(args.context, getUserSnapshot(args.input.email));
+}
+
+async function handleFlowSeed(
+  args: HandlerArgs<{ email: string; sourceUrl: string; execute?: boolean }>,
+) {
+  if (!args.input.execute) {
+    printSuccess(args.context, {
+      dryRun: true,
+      action: "create_request",
+      email: args.input.email,
+      sourceUrl: args.input.sourceUrl,
+    });
+    return;
+  }
+  printSuccess(
+    args.context,
+    createRequest({
+      email: args.input.email,
+      sourceUrl: args.input.sourceUrl,
+    }),
+  );
+}
+
+async function handleFlowSnapshot(args: HandlerArgs<{ publicId: string }>) {
+  printSuccess(args.context, getFlowSnapshot(args.input.publicId));
+}
+
+async function handleFlowAssert(args: HandlerArgs<{ publicId: string; expectStatus: string }>) {
+  const result = assertFlowStatus({
+    publicId: args.input.publicId,
+    expectStatus: args.input.expectStatus,
+  });
+  printSuccess(args.context, result);
+  if (!result.assertion.passed) {
+    process.exitCode = 2;
+  }
+}
+
+function printSuccess<T>(context: CliContext, data: T) {
+  if (context.pretty) {
+    process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
+    return;
+  }
+  printJson({
+    ok: true,
+    data,
+  });
+}
+
+function printError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  process.stderr.write(
+    `${JSON.stringify(
+      {
+        ok: false,
+        error: {
+          code: "DEMO_CLI_ERROR",
+          message,
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+}
+
+function printJson<T>(payload: Output<T>) {
+  process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+}

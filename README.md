@@ -28,6 +28,18 @@ codex plugin add web-skills@celados-web-skills
 
 Then start a new Codex thread or reload skills so Codex picks up the plugin.
 
+Reference implementation:
+
+```bash
+cd examples/web-flow-testing-demo
+bun install
+bun run dev
+```
+
+The demo is a Vite SPA with an `argc`-powered `app-cli`. It shows the full idea:
+create or reuse a test user, drive the browser flow, snapshot durable flow
+state, assert the expected status, and write an agent report.
+
 ## Repository Shape
 
 ```text
@@ -38,6 +50,8 @@ plugins/
     .codex-plugin/plugin.json
     skills/
       web-flow-testing/
+examples/
+  web-flow-testing-demo/
 skills/
   <skill-name>/
     SKILL.md

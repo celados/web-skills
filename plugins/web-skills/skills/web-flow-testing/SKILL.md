@@ -23,6 +23,11 @@ This skill is for product-development flow tests, not for replacing a full E2E
 test suite. Prefer it when an agent needs to verify a real workflow quickly,
 repeatably, and with enough evidence for an engineer to trust the result.
 
+When using this repository from source, `examples/web-flow-testing-demo` is a
+runnable end-to-end implementation of this contract. It contains a Vite SPA, an
+`argc` CLI with `env validate`, `user ensure`, `flow snapshot`, and
+`flow assert`, plus a sample agent report.
+
 ## Workflow
 
 1. Name the flow and target environment.
