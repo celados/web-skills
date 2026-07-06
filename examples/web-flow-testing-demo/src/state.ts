@@ -1,10 +1,21 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
-import type { DemoFlow, DemoState, DemoUser, RequestStatus } from "./types";
+import type { DemoFlow, DemoScenario, DemoState, DemoUiState, DemoUser, RequestStatus } from "./types";
 
 export const stateFilePath = resolve(process.cwd(), ".demo-state/state.json");
+export const demoScenarios: DemoScenario[] = [
+  "happy",
+  "job-running",
+  "webhook-delayed",
+  "owner-mismatch",
+  "ui-success-backend-failed",
+  "backend-ready-ui-stale",
+  "console-error",
+];
+
 const demoBaseUrl = "http://127.0.0.1:5174";
+const ownerMismatchEmail = "owner-only@example.com";
 
 export type EnsureUserInput = {
   email?: string;
@@ -15,6 +26,7 @@ export type EnsureUserInput = {
 export type CreateRequestInput = {
   email?: string;
   sourceUrl?: string;
+  scenario?: string;
 };
 
 export type CheckoutRequestInput = {
@@ -69,15 +81,12 @@ export function ensureUser(input: EnsureUserInput) {
 
   const now = new Date().toISOString();
   const nextNumber = state.counters.users + 1;
-  const user: DemoUser = {
+  const user = createUserRecord({
     email,
     name,
-    authUserId: `auth_demo_${String(nextNumber).padStart(3, "0")}`,
-    appUserId: `user_demo_${String(nextNumber).padStart(3, "0")}`,
-    emailVerified: true,
-    createdAt: now,
-    updatedAt: now,
-  };
+    number: nextNumber,
+    now,
+  });
 
   if (!input.execute) {
     return {
@@ -128,10 +137,24 @@ export function getUserSnapshot(email?: string) {
 export function createRequest(input: CreateRequestInput) {
   const email = normalizeEmail(input.email);
   const sourceUrl = normalizeSourceUrl(input.sourceUrl);
+  const scenario = normalizeScenario(input.scenario);
   const state = readState();
   const user = state.users[email];
   if (!user) {
     throw new Error(`No demo user found for ${email}. Run user ensure --execute first.`);
+  }
+
+  const duplicate = findDuplicateRequest(state, email, sourceUrl);
+  if (duplicate && scenario === "happy") {
+    const updatedFlow = {
+      ...duplicate,
+      submitCount: duplicate.submitCount + 1,
+      duplicateOf: duplicate.publicId,
+      updatedAt: new Date().toISOString(),
+    };
+    state.requests[duplicate.publicId] = updatedFlow;
+    writeState(state);
+    return updatedFlow;
   }
 
   const now = new Date().toISOString();
@@ -139,35 +162,20 @@ export function createRequest(input: CreateRequestInput) {
   const projectNumber = state.counters.projects + 1;
   const publicId = `req_demo_${String(requestNumber).padStart(3, "0")}`;
   const projectId = `proj_demo_${String(projectNumber).padStart(3, "0")}`;
-  const flow: DemoFlow = {
+  const flow = buildFlow({
     publicId,
+    projectId,
+    requestNumber,
+    scenario,
     sourceUrl,
-    accountEmail: email,
-    status: "awaiting_payment",
-    scanStatus: "complete",
-    order: {
-      publicId: `ord_demo_${String(requestNumber).padStart(3, "0")}`,
-      status: "none",
-      amountCents: 200,
-      currency: "usd",
-    },
-    job: {
-      publicId: `job_demo_${String(requestNumber).padStart(3, "0")}`,
-      status: "not_started",
-      phase: "none",
-    },
-    project: {
-      publicId: projectId,
-      name: projectNameFromUrl(sourceUrl),
-      status: "not_created",
-    },
-    createdAt: now,
-    updatedAt: now,
-  };
+    actorEmail: email,
+    now,
+  });
 
   state.counters.requests = requestNumber;
   state.counters.projects = projectNumber;
   state.requests[publicId] = flow;
+  ensureScenarioOwner(state, scenario, now);
   writeState(state);
   return flow;
 }
@@ -180,24 +188,7 @@ export function checkoutRequest(input: CheckoutRequestInput) {
     throw new Error(`No demo flow found for ${publicId}.`);
   }
 
-  const updatedFlow: DemoFlow = {
-    ...flow,
-    status: "ready",
-    order: {
-      ...flow.order,
-      status: "settled",
-    },
-    job: {
-      ...flow.job,
-      status: "ready",
-      phase: "complete",
-    },
-    project: {
-      ...flow.project,
-      status: "ready",
-    },
-    updatedAt: new Date().toISOString(),
-  };
+  const updatedFlow = completeCheckout(flow);
   state.requests[publicId] = updatedFlow;
   writeState(state);
   return updatedFlow;
@@ -230,6 +221,211 @@ export function assertFlowStatus(input: { publicId?: string; expectStatus?: stri
       actual: actualStatus,
       passed,
     },
+  };
+}
+
+export function assertFlowOwner(input: { publicId?: string; email?: string }) {
+  const snapshot = getFlowSnapshot(input.publicId);
+  const expectedOwner = normalizeEmail(input.email);
+  const actualOwner = snapshot.flow.accountEmail;
+  const passed = actualOwner === expectedOwner;
+  return {
+    ...snapshot,
+    assertion: {
+      field: "flow.accountEmail",
+      expected: expectedOwner,
+      actual: actualOwner,
+      passed,
+    },
+  };
+}
+
+function buildFlow(input: {
+  publicId: string;
+  projectId: string;
+  requestNumber: number;
+  scenario: DemoScenario;
+  sourceUrl: string;
+  actorEmail: string;
+  now: string;
+}): DemoFlow {
+  const ownerEmail = input.scenario === "owner-mismatch" ? ownerMismatchEmail : input.actorEmail;
+  const base = createBaseFlow({
+    publicId: input.publicId,
+    projectId: input.projectId,
+    requestNumber: input.requestNumber,
+    scenario: input.scenario,
+    sourceUrl: input.sourceUrl,
+    accountEmail: ownerEmail,
+    now: input.now,
+  });
+
+  if (input.scenario === "job-running") {
+    return {
+      ...base,
+      status: "running",
+      ui: createUiState("Payment received", "Payment received", "running", false),
+      order: { ...base.order, status: "settled" },
+      job: { ...base.job, status: "running", phase: "rendering" },
+      project: { ...base.project, status: "building" },
+    };
+  }
+
+  if (input.scenario === "webhook-delayed") {
+    return {
+      ...base,
+      status: "paid",
+      ui: createUiState("Payment received", "Payment received", "paid", false),
+      order: { ...base.order, status: "pending_webhook" },
+      job: { ...base.job, status: "queued", phase: "waiting" },
+    };
+  }
+
+  if (input.scenario === "ui-success-backend-failed") {
+    return {
+      ...base,
+      status: "awaiting_payment",
+      ui: createUiState("Project ready", "Unlocked", "ready", true),
+      order: { ...base.order, status: "none" },
+      job: { ...base.job, status: "not_started", phase: "none" },
+      project: { ...base.project, status: "not_created" },
+    };
+  }
+
+  if (input.scenario === "backend-ready-ui-stale") {
+    return {
+      ...base,
+      status: "ready",
+      ui: createUiState("Scan complete", "Unlock & build - $2 test mode", "awaiting_payment", true),
+      order: { ...base.order, status: "settled" },
+      job: { ...base.job, status: "ready", phase: "complete" },
+      project: { ...base.project, status: "ready" },
+    };
+  }
+
+  if (input.scenario === "console-error") {
+    return {
+      ...base,
+      ui: {
+        ...base.ui,
+        errorBanner: "Intentional console error scenario. Inspect browser logs before reporting pass.",
+      },
+    };
+  }
+
+  return base;
+}
+
+function createBaseFlow(input: {
+  publicId: string;
+  projectId: string;
+  requestNumber: number;
+  scenario: DemoScenario;
+  sourceUrl: string;
+  accountEmail: string;
+  now: string;
+}): DemoFlow {
+  return {
+    publicId: input.publicId,
+    scenario: input.scenario,
+    sourceUrl: input.sourceUrl,
+    accountEmail: input.accountEmail,
+    status: "awaiting_payment",
+    scanStatus: "complete",
+    ui: createUiState("Scan complete", "Unlock & build - $2 test mode", "awaiting_payment", false),
+    order: {
+      publicId: `ord_demo_${String(input.requestNumber).padStart(3, "0")}`,
+      status: "none",
+      amountCents: 200,
+      currency: "usd",
+    },
+    job: {
+      publicId: `job_demo_${String(input.requestNumber).padStart(3, "0")}`,
+      status: "not_started",
+      phase: "none",
+    },
+    project: {
+      publicId: input.projectId,
+      name: projectNameFromUrl(input.sourceUrl),
+      status: "not_created",
+    },
+    submitCount: 1,
+    duplicateOf: null,
+    createdAt: input.now,
+    updatedAt: input.now,
+  };
+}
+
+function completeCheckout(flow: DemoFlow): DemoFlow {
+  if (flow.scenario !== "happy" && flow.scenario !== "console-error") {
+    return {
+      ...flow,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  return {
+    ...flow,
+    status: "ready",
+    ui: createUiState("Project ready", "Unlocked", "ready", false),
+    order: {
+      ...flow.order,
+      status: "settled",
+    },
+    job: {
+      ...flow.job,
+      status: "ready",
+      phase: "complete",
+    },
+    project: {
+      ...flow.project,
+      status: "ready",
+    },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function createUiState(
+  resultLabel: DemoUiState["resultLabel"],
+  gateLabel: DemoUiState["gateLabel"],
+  visibleStatus: RequestStatus,
+  stale: boolean,
+): DemoUiState {
+  return {
+    resultLabel,
+    gateLabel,
+    visibleStatus,
+    stale,
+  };
+}
+
+function findDuplicateRequest(state: DemoState, email: string, sourceUrl: string) {
+  return Object.values(state.requests).find(
+    (request) => request.accountEmail === email && request.sourceUrl === sourceUrl,
+  );
+}
+
+function ensureScenarioOwner(state: DemoState, scenario: DemoScenario, now: string) {
+  if (scenario !== "owner-mismatch" || state.users[ownerMismatchEmail]) return;
+  const nextNumber = state.counters.users + 1;
+  state.counters.users = nextNumber;
+  state.users[ownerMismatchEmail] = createUserRecord({
+    email: ownerMismatchEmail,
+    name: "Owner Only",
+    number: nextNumber,
+    now,
+  });
+}
+
+function createUserRecord(input: { email: string; name: string; number: number; now: string }): DemoUser {
+  return {
+    email: input.email,
+    name: input.name,
+    authUserId: `auth_demo_${String(input.number).padStart(3, "0")}`,
+    appUserId: `user_demo_${String(input.number).padStart(3, "0")}`,
+    emailVerified: true,
+    createdAt: input.now,
+    updatedAt: input.now,
   };
 }
 
@@ -267,11 +463,19 @@ function normalizePublicId(publicId?: string) {
 
 function normalizeExpectedStatus(status?: string) {
   const normalized = status?.trim();
-  const allowed: RequestStatus[] = ["awaiting_payment", "paid", "ready"];
+  const allowed: RequestStatus[] = ["awaiting_payment", "paid", "running", "ready", "failed"];
   if (!allowed.includes(normalized as RequestStatus)) {
     throw new Error(`Expected status must be one of: ${allowed.join(", ")}.`);
   }
   return normalized as RequestStatus;
+}
+
+function normalizeScenario(scenario?: string) {
+  const normalized = scenario?.trim() || "happy";
+  if (!demoScenarios.includes(normalized as DemoScenario)) {
+    throw new Error(`Scenario must be one of: ${demoScenarios.join(", ")}.`);
+  }
+  return normalized as DemoScenario;
 }
 
 function projectNameFromUrl(sourceUrl: string) {

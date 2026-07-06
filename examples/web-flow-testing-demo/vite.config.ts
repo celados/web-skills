@@ -1,6 +1,7 @@
 import { defineConfig, type Plugin } from "vite";
 
 import { checkoutRequest, createRequest, ensureUser, readState, resetState, setSession } from "./src/state";
+import type { DemoScenario } from "./src/types";
 
 type ApiResponse =
   | { ok: true; data: unknown }
@@ -11,6 +12,7 @@ type JsonRequest = {
   name?: string;
   sourceUrl?: string;
   publicId?: string;
+  scenario?: DemoScenario;
 };
 
 function sendJson(response: import("node:http").ServerResponse, status: number, body: ApiResponse) {
@@ -68,7 +70,22 @@ function apiPlugin(): Plugin {
 
           if (request.method === "POST" && url === "/api/requests") {
             const body = await readJson(request);
-            const flow = createRequest({ email: body.email, sourceUrl: body.sourceUrl });
+            if (body.sourceUrl?.includes("network-error.example")) {
+              sendJson(response, 503, {
+                ok: false,
+                error: {
+                  code: "DEMO_NETWORK_ERROR",
+                  message: "Intentional demo network error for browser evidence testing.",
+                  hint: "Use a normal source URL or report this as the blocking network response.",
+                },
+              });
+              return;
+            }
+            const flow = createRequest({
+              email: body.email,
+              sourceUrl: body.sourceUrl,
+              scenario: body.scenario,
+            });
             sendJson(response, 200, { ok: true, data: flow });
             return;
           }

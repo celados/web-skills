@@ -4,8 +4,10 @@ import { cli, parseArgv } from "argc";
 
 import { cliOptions, schema } from "./cli-schema";
 import {
+  assertFlowOwner,
   assertFlowStatus,
   createRequest,
+  demoScenarios,
   ensureUser,
   getFlowSnapshot,
   getUserSnapshot,
@@ -50,6 +52,7 @@ try {
         seed: handleFlowSeed,
         snapshot: handleFlowSnapshot,
         assert: handleFlowAssert,
+        "assert-owner": handleFlowAssertOwner,
       },
     },
   });
@@ -65,6 +68,7 @@ async function handleEnvValidate(args: HandlerArgs<Record<string, never>>) {
     appBaseUrl: state.appBaseUrl,
     stateFile: stateFilePath,
     stateFilePresent: existsSync(stateFilePath),
+    scenarios: demoScenarios,
     userCount: Object.keys(state.users).length,
     requestCount: Object.keys(state.requests).length,
   });
@@ -103,7 +107,7 @@ async function handleUserSnapshot(args: HandlerArgs<{ email: string }>) {
 }
 
 async function handleFlowSeed(
-  args: HandlerArgs<{ email: string; sourceUrl: string; execute?: boolean }>,
+  args: HandlerArgs<{ email: string; sourceUrl: string; scenario?: string; execute?: boolean }>,
 ) {
   if (!args.input.execute) {
     printSuccess(args.context, {
@@ -111,6 +115,7 @@ async function handleFlowSeed(
       action: "create_request",
       email: args.input.email,
       sourceUrl: args.input.sourceUrl,
+      scenario: args.input.scenario ?? "happy",
     });
     return;
   }
@@ -119,6 +124,7 @@ async function handleFlowSeed(
     createRequest({
       email: args.input.email,
       sourceUrl: args.input.sourceUrl,
+      scenario: args.input.scenario,
     }),
   );
 }
@@ -131,6 +137,17 @@ async function handleFlowAssert(args: HandlerArgs<{ publicId: string; expectStat
   const result = assertFlowStatus({
     publicId: args.input.publicId,
     expectStatus: args.input.expectStatus,
+  });
+  printSuccess(args.context, result);
+  if (!result.assertion.passed) {
+    process.exitCode = 2;
+  }
+}
+
+async function handleFlowAssertOwner(args: HandlerArgs<{ publicId: string; email: string }>) {
+  const result = assertFlowOwner({
+    publicId: args.input.publicId,
+    email: args.input.email,
   });
   printSuccess(args.context, result);
   if (!result.assertion.passed) {

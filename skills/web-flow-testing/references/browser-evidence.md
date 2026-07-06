@@ -38,12 +38,15 @@ Treat third-party browser warnings as noise unless they block the flow.
   `node_repl js`, run the Browser skill's bootstrap, select
   `agent.browsers.get("iab")`, and read `browser.documentation()` before
   interacting with the tab.
+- Treat `domSnapshot()` as an optional browser-evidence convenience when the
+  active Browser runtime supports it.
 - If `domSnapshot()` fails in the in-app Browser, stay on the same Browser
   surface first and use its documented alternatives such as visible DOM,
   locators, targeted page evaluation, screenshots, or browser logs. Move to
   standalone Playwright, Chrome automation, or Computer Use after the Browser
   skill's troubleshooting path confirms a different surface is required.
-- Prefer semantic selectors or accessibility snapshots over coordinates.
+- Prefer semantic selectors, visible DOM, or accessibility snapshots when
+  available over coordinates.
 - Re-query elements after navigation, modal open/close, or list refresh.
 - If an upload is part of the flow, set the file input directly when the tool
   supports it; reserve native OS file pickers for manual testing.

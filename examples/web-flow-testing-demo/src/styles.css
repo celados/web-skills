@@ -30,7 +30,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -62,7 +63,8 @@ button.secondary {
   color: var(--ink);
 }
 
-input {
+input,
+select {
   width: 100%;
   min-height: 44px;
   border: 1px solid var(--line);
@@ -71,7 +73,8 @@ input {
   padding: 0 12px;
 }
 
-input:disabled {
+input:disabled,
+select:disabled {
   color: var(--muted);
   background: #eee9df;
 }
@@ -202,7 +205,7 @@ input:disabled {
 
 .form-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1.1fr) minmax(180px, 0.6fr) auto;
   gap: 12px;
   align-items: end;
   margin-bottom: 14px;
@@ -229,6 +232,30 @@ input:disabled {
   display: block;
   color: var(--ink);
   word-break: break-word;
+}
+
+.scenario-block {
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  background: #fffdf8;
+  padding: 16px;
+}
+
+.scenario-block strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.scenario-block p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.scenario-block .error-text {
+  margin-top: 10px;
+  color: var(--red);
+  font-weight: 800;
 }
 
 .empty-state {

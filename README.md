@@ -6,6 +6,36 @@ This repository collects reusable Agent Skills for building, testing, and
 operating web applications. The skills are opinionated playbooks extracted from
 real product work, then generalized so they can apply across stacks.
 
+## Try The Demo In 3 Minutes
+
+The `web-flow-testing` reference app is a runnable Vite SPA plus an operator
+CLI. It demonstrates the core contract: drive the browser path, capture public
+IDs, and verify durable backend facts with CLI snapshots and assertions.
+
+```bash
+cd examples/web-flow-testing-demo
+bun install
+bun run app-cli -- env reset --execute
+bun run app-cli -- user ensure --email agent-smoke@example.com --execute
+bun run dev
+```
+
+Open `http://127.0.0.1:5174`, sign in as `agent-smoke@example.com`, submit
+`https://example.com/pricing`, then verify the public id:
+
+```bash
+bun run app-cli -- flow snapshot --public-id req_demo_001
+bun run app-cli -- flow assert --public-id req_demo_001 --expect-status awaiting_payment
+```
+
+Seed non-happy paths from the CLI when you want to see partial or blocked
+reports:
+
+```bash
+bun run app-cli -- flow seed --email agent-smoke@example.com --source-url https://example.com --scenario job-running --execute
+bun run app-cli -- flow seed --email agent-smoke@example.com --source-url https://example.com --scenario owner-mismatch --execute
+```
+
 ## Skills
 
 ### web-flow-testing
@@ -38,7 +68,8 @@ bun run dev
 
 The demo is a Vite SPA with an `argc`-powered `app-cli`. It shows the full idea:
 create or reuse a test user, drive the browser flow, snapshot durable flow
-state, assert the expected status, and write an agent report.
+state, assert the expected status, and write pass/partial/blocked agent
+reports.
 
 ## Repository Shape
 

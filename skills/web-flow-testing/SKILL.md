@@ -98,6 +98,7 @@ runnable end-to-end implementation of this contract. It contains a Vite SPA, an
 | Flow needs test users, verified email, org/account membership, API keys, credits, entitlements, or cleanup | `references/test-identities.md` |
 | You are driving Codex in-app Browser, Playwright, or Chrome and need reliable evidence instead of screenshots alone | `references/browser-evidence.md` |
 | You need to decide which database/API/order/job/license/artifact facts prove the UI result | `references/durable-state.md` |
+| A real project needs auth, database, payment, webhook, queue, object storage, or entitlement adapter commands | `references/provider-adapters.md` |
 | You need recipes for auth, forms, checkout test mode, async jobs, workspaces, or downloads | `references/web-recipes.md` |
 
 ## Report Format

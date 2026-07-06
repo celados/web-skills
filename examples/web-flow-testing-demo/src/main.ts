@@ -1,9 +1,20 @@
 import "./styles.css";
 
-import type { ApiEnvelope, DemoFlow, DemoState, DemoUser } from "./types";
+import type { ApiEnvelope, DemoFlow, DemoScenario, DemoState, DemoUser } from "./types";
 
 const defaultEmail = "agent-smoke@example.com";
 const defaultSourceUrl = "https://example.com/pricing";
+const defaultScenario: DemoScenario = "happy";
+const demoScenarios: DemoScenario[] = [
+  "happy",
+  "job-running",
+  "webhook-delayed",
+  "owner-mismatch",
+  "ui-success-backend-failed",
+  "backend-ready-ui-stale",
+  "console-error",
+];
+const reportedConsoleScenarios = new Set<string>();
 
 const appRoot = getAppRoot();
 
@@ -34,6 +45,7 @@ function render() {
 
   const selectedFlow = model.selectedRequestId ? state.requests[model.selectedRequestId] : null;
   const sessionUser = state.sessionEmail ? state.users[state.sessionEmail] : null;
+  reportScenarioConsoleError(selectedFlow);
 
   appRoot.innerHTML = `
     <main class="app-shell">
@@ -77,6 +89,12 @@ function render() {
               Source URL
               <input name="sourceUrl" type="url" value="${defaultSourceUrl}" ${sessionUser ? "" : "disabled"} />
             </label>
+            <label>
+              Scenario
+              <select name="scenario" ${sessionUser ? "" : "disabled"}>
+                ${demoScenarios.map((scenario) => `<option value="${scenario}">${scenario}</option>`).join("")}
+              </select>
+            </label>
             <button type="submit" ${sessionUser ? "" : "disabled"}>Submit</button>
           </form>
 
@@ -110,7 +128,8 @@ function bindEvents() {
     event.preventDefault();
     const form = new FormData(event.currentTarget as HTMLFormElement);
     const sourceUrl = String(form.get("sourceUrl") ?? defaultSourceUrl);
-    void submitRequest(sourceUrl);
+    const scenario = String(form.get("scenario") ?? defaultScenario) as DemoScenario;
+    void submitRequest(sourceUrl, scenario);
   });
 
   document.querySelector<HTMLButtonElement>("[data-action='checkout']")?.addEventListener("click", () => {
@@ -124,60 +143,85 @@ function bindEvents() {
 }
 
 async function signIn(email: string) {
-  const user = await api<DemoUser>("/api/users/ensure", {
-    method: "POST",
-    body: {
-      email,
-      name: "Agent Smoke",
-    },
-  });
-  await api<DemoState>("/api/session", {
-    method: "POST",
-    body: {
-      email: user.email,
-    },
-  });
-  model.notice = `Signed in as ${user.email}`;
-  await refresh();
+  try {
+    const user = await api<DemoUser>("/api/users/ensure", {
+      method: "POST",
+      body: {
+        email,
+        name: "Agent Smoke",
+      },
+    });
+    await api<DemoState>("/api/session", {
+      method: "POST",
+      body: {
+        email: user.email,
+      },
+    });
+    model.notice = `Signed in as ${user.email}`;
+    await refresh();
+  } catch (error) {
+    model.notice = errorMessage(error);
+    render();
+  }
 }
 
-async function submitRequest(sourceUrl: string) {
+async function submitRequest(sourceUrl: string, scenario: DemoScenario) {
   const state = model.state;
   if (!state?.sessionEmail) return;
-  const flow = await api<DemoFlow>("/api/requests", {
-    method: "POST",
-    body: {
-      email: state.sessionEmail,
-      sourceUrl,
-    },
-  });
-  model.selectedRequestId = flow.publicId;
-  model.notice = `Created ${flow.publicId}`;
-  window.history.replaceState(null, "", `/requests/${flow.publicId}`);
-  await refresh();
+  try {
+    const flow = await api<DemoFlow>("/api/requests", {
+      method: "POST",
+      body: {
+        email: state.sessionEmail,
+        sourceUrl,
+        scenario,
+      },
+    });
+    model.selectedRequestId = flow.publicId;
+    model.notice = flow.duplicateOf
+      ? `Duplicate submit returned ${flow.publicId}`
+      : `Created ${flow.publicId}`;
+    window.history.replaceState(null, "", `/requests/${flow.publicId}`);
+    await refresh();
+  } catch (error) {
+    model.notice = errorMessage(error);
+    render();
+  }
 }
 
 async function checkout(publicId: string) {
-  const flow = await api<DemoFlow>("/api/checkout", {
-    method: "POST",
-    body: {
-      publicId,
-    },
-  });
-  model.selectedRequestId = flow.publicId;
-  model.notice = `Unlocked ${flow.project.publicId}`;
-  window.history.replaceState(null, "", `/projects/${flow.project.publicId}`);
-  await refresh();
+  try {
+    const flow = await api<DemoFlow>("/api/checkout", {
+      method: "POST",
+      body: {
+        publicId,
+      },
+    });
+    model.selectedRequestId = flow.publicId;
+    model.notice = flow.status === "ready"
+      ? `Unlocked ${flow.project.publicId}`
+      : `Checkout accepted; ${flow.scenario} still needs backend proof`;
+    window.history.replaceState(null, "", `/projects/${flow.project.publicId}`);
+    await refresh();
+  } catch (error) {
+    model.notice = errorMessage(error);
+    render();
+  }
 }
 
 async function reset() {
-  await api<DemoState>("/api/reset", {
-    method: "POST",
-  });
-  model.selectedRequestId = null;
-  model.notice = "Demo state reset";
-  window.history.replaceState(null, "", "/");
-  await refresh();
+  try {
+    await api<DemoState>("/api/reset", {
+      method: "POST",
+    });
+    model.selectedRequestId = null;
+    model.notice = "Demo state reset";
+    window.history.replaceState(null, "", "/");
+    await refresh();
+  } catch (error) {
+    model.notice = errorMessage(error);
+    render();
+  }
 }
 
 async function api<T>(path: string, options: { method?: string; body?: unknown } = {}) {
@@ -212,7 +256,7 @@ function emptyState(user: DemoUser | null) {
 }
 
 function renderFlowResult(flow: DemoFlow) {
-  const ready = flow.status === "ready";
+  const ready = flow.ui.visibleStatus === "ready";
   return `
     <div class="result-block">
       <div>
@@ -221,14 +265,20 @@ function renderFlowResult(flow: DemoFlow) {
       </div>
       <div>
         <p class="eyebrow">UI result</p>
-        <strong>${ready ? "Project ready" : "Scan complete"}</strong>
+        <strong>${escapeHtml(flow.ui.resultLabel)}</strong>
       </div>
       <div>
         <p class="eyebrow">Gate</p>
-        <strong>${ready ? "Unlocked" : "Unlock & build - $2 test mode"}</strong>
+        <strong>${escapeHtml(flow.ui.gateLabel)}</strong>
       </div>
       <button data-action="checkout" ${ready ? "disabled" : ""}>${ready ? "Paid" : "Pay test $2"}</button>
       <button class="secondary" data-action="reset">Reset</button>
+    </div>
+    <div class="scenario-block">
+      <p class="eyebrow">Scenario</p>
+      <strong>${escapeHtml(flow.scenario)}</strong>
+      <p>${escapeHtml(scenarioHint(flow))}</p>
+      ${flow.ui.errorBanner ? `<p class="error-text">${escapeHtml(flow.ui.errorBanner)}</p>` : ""}
     </div>
   `;
 }
@@ -247,13 +297,52 @@ function renderUserFacts(user: DemoUser) {
 function renderFlowFacts(flow: DemoFlow) {
   return `
     <dl class="facts facts-spaced">
+      <div><dt>Scenario</dt><dd>${escapeHtml(flow.scenario)}</dd></div>
       <div><dt>Request</dt><dd>${escapeHtml(flow.status)}</dd></div>
+      <div><dt>UI status</dt><dd>${escapeHtml(flow.ui.visibleStatus)}${flow.ui.stale ? " / stale" : ""}</dd></div>
       <div><dt>Source</dt><dd>${escapeHtml(flow.sourceUrl)}</dd></div>
       <div><dt>Order</dt><dd>${escapeHtml(flow.order.status)}</dd></div>
       <div><dt>Job</dt><dd>${escapeHtml(flow.job.status)} / ${escapeHtml(flow.job.phase)}</dd></div>
       <div><dt>Project</dt><dd>${escapeHtml(flow.project.publicId)} / ${escapeHtml(flow.project.status)}</dd></div>
+      <div><dt>Owner</dt><dd>${escapeHtml(flow.accountEmail)}</dd></div>
+      <div><dt>Submits</dt><dd>${flow.submitCount}${flow.duplicateOf ? ` / duplicate of ${escapeHtml(flow.duplicateOf)}` : ""}</dd></div>
     </dl>
   `;
+}
+
+function scenarioHint(flow: DemoFlow) {
+  if (flow.scenario === "job-running") {
+    return "Partial: payment settled, but the durable job is still running.";
+  }
+  if (flow.scenario === "webhook-delayed") {
+    return "Partial: checkout reached paid, but the provider webhook has not settled the order.";
+  }
+  if (flow.scenario === "owner-mismatch") {
+    return "Blocked: the visible actor and durable owner differ; run flow assert-owner.";
+  }
+  if (flow.scenario === "ui-success-backend-failed") {
+    return "Blocked: the UI looks ready while backend state remains awaiting payment.";
+  }
+  if (flow.scenario === "backend-ready-ui-stale") {
+    return "Partial: backend is ready while the browser still shows the pay gate.";
+  }
+  if (flow.scenario === "console-error") {
+    return "Blocked until browser logs are captured and explained.";
+  }
+  if (flow.duplicateOf) {
+    return "Duplicate submit: the backend reused the existing public id.";
+  }
+  return "Pass candidate: finish with CLI snapshot and assert commands.";
+}
+
+function reportScenarioConsoleError(flow: DemoFlow | null) {
+  if (!flow || flow.scenario !== "console-error" || reportedConsoleScenarios.has(flow.publicId)) return;
+  reportedConsoleScenarios.add(flow.publicId);
+  console.error(`Intentional demo console error for ${flow.publicId}`);
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function escapeHtml(value: string) {

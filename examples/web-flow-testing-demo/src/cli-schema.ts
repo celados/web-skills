@@ -82,6 +82,7 @@ export const schema = {
             "Create a submitted request directly for CLI-only demos; dry-run by default",
           examples: [
             "app-cli flow seed --email agent-smoke@example.com --source-url https://example.com --execute",
+            "app-cli flow seed --email agent-smoke@example.com --source-url https://example.com --scenario job-running --execute",
           ],
         })
         .input(
@@ -89,6 +90,7 @@ export const schema = {
             object({
               email: string(),
               sourceUrl: string(),
+              scenario: optional(string()),
               execute: optional(boolean()),
             }),
           ),
@@ -117,6 +119,21 @@ export const schema = {
             object({
               publicId: string(),
               expectStatus: string(),
+            }),
+          ),
+        ),
+      "assert-owner": c
+        .meta({
+          description: "Assert the flow belongs to the expected account email",
+          examples: [
+            "app-cli flow assert-owner --public-id req_demo_001 --email agent-smoke@example.com",
+          ],
+        })
+        .input(
+          s(
+            object({
+              publicId: string(),
+              email: string(),
             }),
           ),
         ),
