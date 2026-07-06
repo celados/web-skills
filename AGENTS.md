@@ -38,12 +38,20 @@ provider-specific adapter.
 Before committing:
 
 ```bash
+bash scripts/validate.sh
+```
+
+The validation script runs this checklist:
+
+```bash
 git diff --check
 bash scripts/sync-plugin-skills.sh
-git diff --exit-code -- plugins/web-skills/skills
+diff -ru skills plugins/web-skills/skills
+git diff --exit-code -- plugins/web-skills/skills # CI only
 bunx skills-ref validate ./skills/web-flow-testing
 uv run --with pyyaml /Users/deniffer/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py ./plugins/web-skills
 cmp -s marketplace.json .agents/plugins/marketplace.json
+bun run build # from examples/web-flow-testing-demo
 git status --short --branch
 ```
 

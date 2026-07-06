@@ -19,6 +19,19 @@ export type DemoUser = {
   updatedAt: string;
 };
 
+export type DemoApiKey = {
+  id: string;
+  name: string;
+  betterAuthUserId: string;
+  prefix: string;
+  start: string;
+  enabled: boolean;
+  permissions: Record<string, string[]>;
+  createdAt: string;
+  updatedAt: string;
+  revokedAt: string | null;
+};
+
 export type DemoOrder = {
   publicId: string;
   status: "none" | "pending_webhook" | "settled" | "failed";
@@ -69,10 +82,12 @@ export type DemoState = {
   sessionEmail: string | null;
   counters: {
     users: number;
+    apiKeys: number;
     requests: number;
     projects: number;
   };
   users: Record<string, DemoUser>;
+  apiKeys: Record<string, DemoApiKey>;
   requests: Record<string, DemoFlow>;
 };
 

@@ -70,6 +70,85 @@ export const schema = {
               email: string(),
             }),
           ),
+      ),
+    },
+  ),
+  auth: group(
+    { description: "Auth provider adapter operations" },
+    {
+      "api-key": group(
+        { description: "Manage demo API keys without exposing provider secrets" },
+        {
+          create: c
+            .meta({
+              description:
+                "Create an API key for a Better Auth user id through the auth adapter; dry-run by default",
+              examples: [
+                "app-cli auth api-key create --better-auth-user-id auth_demo_001 --name 'Agent smoke'",
+                "app-cli auth api-key create --better-auth-user-id auth_demo_001 --name 'Agent smoke' --execute",
+              ],
+            })
+            .input(
+              s(
+                object({
+                  betterAuthUserId: string(),
+                  name: optional(string()),
+                  execute: optional(boolean()),
+                }),
+              ),
+            ),
+          revoke: c
+            .meta({
+              description:
+                "Revoke a demo API key through the auth adapter; dry-run by default",
+              examples: [
+                "app-cli auth api-key revoke --key-id key_demo_001",
+                "app-cli auth api-key revoke --key-id key_demo_001 --execute",
+              ],
+            })
+            .input(
+              s(
+                object({
+                  keyId: string(),
+                  execute: optional(boolean()),
+                }),
+              ),
+            ),
+        },
+      ),
+    },
+  ),
+  payment: group(
+    { description: "Payment provider adapter operations" },
+    {
+      snapshot: c
+        .meta({
+          description: "Read order and webhook facts through the payment adapter",
+          examples: ["app-cli payment snapshot --public-id req_demo_001"],
+        })
+        .input(
+          s(
+            object({
+              publicId: string(),
+            }),
+          ),
+        ),
+    },
+  ),
+  jobs: group(
+    { description: "Queue and job adapter operations" },
+    {
+      snapshot: c
+        .meta({
+          description: "Read job and project facts through the jobs adapter",
+          examples: ["app-cli jobs snapshot --public-id req_demo_001"],
+        })
+        .input(
+          s(
+            object({
+              publicId: string(),
+            }),
+          ),
         ),
     },
   ),

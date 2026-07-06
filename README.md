@@ -69,7 +69,9 @@ bun run dev
 The demo is a Vite SPA with an `argc`-powered `app-cli`. It shows the full idea:
 create or reuse a test user, drive the browser flow, snapshot durable flow
 state, assert the expected status, and write pass/partial/blocked agent
-reports.
+reports. It also includes auth, Better Auth, payment, and jobs adapter
+skeletons under `examples/web-flow-testing-demo/src/adapters/` so teams can
+copy the provider boundary without exposing provider secrets to agents.
 
 ## Repository Shape
 
@@ -101,6 +103,12 @@ bash scripts/sync-plugin-skills.sh
 
 This keeps the Codex plugin copy in `plugins/web-skills/skills/` aligned with
 the standalone `skills/` source.
+
+Before publishing, run:
+
+```bash
+bash scripts/validate.sh
+```
 
 ## License
 

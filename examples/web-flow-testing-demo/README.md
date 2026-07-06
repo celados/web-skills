@@ -25,14 +25,23 @@ bun run app-cli -- env validate
 bun run app-cli -- env reset --execute
 bun run app-cli -- user ensure --email agent-smoke@example.com --execute
 bun run app-cli -- user snapshot --email agent-smoke@example.com
+bun run app-cli -- auth api-key create --better-auth-user-id auth_demo_001 --name "Agent smoke"
+bun run app-cli -- auth api-key create --better-auth-user-id auth_demo_001 --name "Agent smoke" --execute
 bun run app-cli -- flow seed --email agent-smoke@example.com --source-url https://example.com/pricing --scenario happy --execute
 bun run app-cli -- flow snapshot --public-id req_demo_001
+bun run app-cli -- payment snapshot --public-id req_demo_001
+bun run app-cli -- jobs snapshot --public-id req_demo_001
 bun run app-cli -- flow assert --public-id req_demo_001 --expect-status awaiting_payment
 bun run app-cli -- flow assert-owner --public-id req_demo_001 --email agent-smoke@example.com
 ```
 
 Writes are dry-run by default. Pass `--execute` to create users, reset state, or
 seed a request.
+
+Provider adapter skeletons live under `src/adapters/`. `auth.example.ts` is the
+runnable local implementation. `auth.better-auth.example.ts` shows the
+production shape: the CLI calls a backend/operator boundary that owns Better
+Auth storage and secrets, then returns only safe JSON evidence to the agent.
 
 ## Scenarios
 

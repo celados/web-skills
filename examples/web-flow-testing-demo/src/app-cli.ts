@@ -2,15 +2,16 @@ import { existsSync } from "node:fs";
 
 import { cli, parseArgv } from "argc";
 
+import { demoAuthAdapter } from "./adapters/auth.example";
+import { demoJobsAdapter } from "./adapters/jobs.example";
+import { demoPaymentAdapter } from "./adapters/payment.example";
 import { cliOptions, schema } from "./cli-schema";
 import {
   assertFlowOwner,
   assertFlowStatus,
   createRequest,
   demoScenarios,
-  ensureUser,
   getFlowSnapshot,
-  getUserSnapshot,
   readState,
   resetState,
   stateFilePath,
@@ -48,6 +49,18 @@ try {
         ensure: handleUserEnsure,
         snapshot: handleUserSnapshot,
       },
+      auth: {
+        "api-key": {
+          create: handleAuthApiKeyCreate,
+          revoke: handleAuthApiKeyRevoke,
+        },
+      },
+      payment: {
+        snapshot: handlePaymentSnapshot,
+      },
+      jobs: {
+        snapshot: handleJobsSnapshot,
+      },
       flow: {
         seed: handleFlowSeed,
         snapshot: handleFlowSnapshot,
@@ -70,6 +83,7 @@ async function handleEnvValidate(args: HandlerArgs<Record<string, never>>) {
     stateFilePresent: existsSync(stateFilePath),
     scenarios: demoScenarios,
     userCount: Object.keys(state.users).length,
+    apiKeyCount: Object.keys(state.apiKeys).length,
     requestCount: Object.keys(state.requests).length,
   });
 }
@@ -92,18 +106,51 @@ async function handleEnvReset(args: HandlerArgs<{ execute?: boolean }>) {
 }
 
 async function handleUserEnsure(args: HandlerArgs<{ email: string; name?: string; execute?: boolean }>) {
-  printSuccess(
-    args.context,
-    ensureUser({
-      email: args.input.email,
-      name: args.input.name,
-      execute: args.input.execute === true,
-    }),
-  );
+  const result = await demoAuthAdapter.ensureUser({
+    email: args.input.email,
+    name: args.input.name,
+    execute: args.input.execute === true,
+  });
+  printSuccess(args.context, result);
 }
 
 async function handleUserSnapshot(args: HandlerArgs<{ email: string }>) {
-  printSuccess(args.context, getUserSnapshot(args.input.email));
+  const result = await demoAuthAdapter.snapshotUser({ email: args.input.email });
+  printSuccess(args.context, result);
+}
+
+async function handleAuthApiKeyCreate(
+  args: HandlerArgs<{ betterAuthUserId: string; name?: string; execute?: boolean }>,
+) {
+  const result = await demoAuthAdapter.createApiKey({
+    betterAuthUserId: args.input.betterAuthUserId,
+    name: args.input.name,
+    execute: args.input.execute === true,
+  });
+  printSuccess(args.context, result);
+}
+
+async function handleAuthApiKeyRevoke(
+  args: HandlerArgs<{ keyId: string; execute?: boolean }>,
+) {
+  const result = await demoAuthAdapter.revokeApiKey({
+    keyId: args.input.keyId,
+    execute: args.input.execute === true,
+  });
+  if (!result) {
+    throw new Error(`No demo API key found for ${args.input.keyId}.`);
+  }
+  printSuccess(args.context, result);
+}
+
+async function handlePaymentSnapshot(args: HandlerArgs<{ publicId: string }>) {
+  const result = await demoPaymentAdapter.snapshotOrder({ publicId: args.input.publicId });
+  printSuccess(args.context, result);
+}
+
+async function handleJobsSnapshot(args: HandlerArgs<{ publicId: string }>) {
+  const result = await demoJobsAdapter.snapshotJob({ publicId: args.input.publicId });
+  printSuccess(args.context, result);
 }
 
 async function handleFlowSeed(

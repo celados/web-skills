@@ -3,6 +3,10 @@ import { dirname, resolve } from "node:path";
 
 import type { DemoFlow, DemoScenario, DemoState, DemoUiState, DemoUser, RequestStatus } from "./types";
 
+type PartialDemoState = Partial<Omit<DemoState, "counters">> & {
+  counters?: Partial<DemoState["counters"]>;
+};
+
 export const stateFilePath = resolve(process.cwd(), ".demo-state/state.json");
 export const demoScenarios: DemoScenario[] = [
   "happy",
@@ -40,10 +44,12 @@ export function createEmptyState(): DemoState {
     sessionEmail: null,
     counters: {
       users: 0,
+      apiKeys: 0,
       requests: 0,
       projects: 0,
     },
     users: {},
+    apiKeys: {},
     requests: {},
   };
 }
@@ -58,12 +64,33 @@ export function readState() {
   if (!existsSync(stateFilePath)) {
     return resetState();
   }
-  return JSON.parse(readFileSync(stateFilePath, "utf8")) as DemoState;
+  return normalizeState(JSON.parse(readFileSync(stateFilePath, "utf8")) as PartialDemoState);
 }
 
 export function writeState(state: DemoState) {
   mkdirSync(dirname(stateFilePath), { recursive: true });
   writeFileSync(stateFilePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+}
+
+function normalizeState(input: PartialDemoState): DemoState {
+  const empty = createEmptyState();
+  const apiKeys = input.apiKeys ?? {};
+  const users = input.users ?? {};
+  const requests = input.requests ?? {};
+  return {
+    environment: input.environment ?? empty.environment,
+    appBaseUrl: input.appBaseUrl ?? empty.appBaseUrl,
+    sessionEmail: input.sessionEmail ?? empty.sessionEmail,
+    counters: {
+      users: input.counters?.users ?? Object.keys(users).length,
+      apiKeys: input.counters?.apiKeys ?? Object.keys(apiKeys).length,
+      requests: input.counters?.requests ?? Object.keys(requests).length,
+      projects: input.counters?.projects ?? empty.counters.projects,
+    },
+    users,
+    apiKeys,
+    requests,
+  };
 }
 
 export function ensureUser(input: EnsureUserInput) {

@@ -27,7 +27,8 @@ trust the result.
 When using this repository from source, `examples/web-flow-testing-demo` is a
 runnable end-to-end implementation of this contract. It contains a Vite SPA, an
 `argc` CLI with `env validate`, `user ensure`, `flow snapshot`, and
-`flow assert`, plus a sample agent report.
+`flow assert`, provider adapter skeletons for auth/payment/jobs, plus a sample
+agent report.
 
 ## Workflow
 
