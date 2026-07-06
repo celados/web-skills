@@ -22,7 +22,7 @@ bunx skills add celados/web-skills --skill web-flow-testing
 Codex plugin install:
 
 ```bash
-codex plugin marketplace add celados/web-skills --sparse marketplace.json --sparse plugins/web-skills
+codex plugin marketplace add celados/web-skills
 codex plugin add web-skills@celados-web-skills
 ```
 
