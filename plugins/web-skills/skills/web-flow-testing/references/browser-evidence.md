@@ -26,6 +26,10 @@ Treat third-party browser warnings as noise unless they block the flow.
 
 ## Browser Control Rules
 
+- When running inside Codex, prefer the Codex in-app Browser for the visible
+  user flow. Use Playwright or Chrome automation only when the in-app Browser is
+  not available, when repeatable local/CI smoke is needed, or when
+  viewport/console checks are easier to automate.
 - Prefer semantic selectors or accessibility snapshots over coordinates.
 - Re-query elements after navigation, modal open/close, or list refresh.
 - If an upload is part of the flow, set the file input directly when the tool

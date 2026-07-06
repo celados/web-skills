@@ -52,6 +52,10 @@ runnable end-to-end implementation of this contract. It contains a Vite SPA, an
      API keys, org membership, or cleanup is part of the flow.
 
 4. Drive the smallest browser path that proves the user journey.
+   - When running inside Codex, prefer the Codex in-app Browser for the
+     visible user flow. Use Playwright or Chrome automation only when the
+     in-app Browser is not available, when repeatable local/CI smoke is needed,
+     or when viewport/console checks are easier to automate.
    - Start from a clean route.
    - Capture final URL, public IDs, visible status, relevant screenshots or DOM
      evidence, and blocking console/network errors.
@@ -87,7 +91,7 @@ runnable end-to-end implementation of this contract. It contains a Vite SPA, an
 |---|---|
 | Project has or needs CLI commands for env checks, user setup, flow snapshots, assertions | `references/cli-contract.md` |
 | Flow needs test users, verified email, org/account membership, API keys, credits, entitlements, or cleanup | `references/test-identities.md` |
-| You are driving Browser/Playwright/Chrome and need reliable evidence instead of screenshots alone | `references/browser-evidence.md` |
+| You are driving Codex in-app Browser, Playwright, or Chrome and need reliable evidence instead of screenshots alone | `references/browser-evidence.md` |
 | You need to decide which database/API/order/job/license/artifact facts prove the UI result | `references/durable-state.md` |
 | You need recipes for auth, forms, checkout test mode, async jobs, workspaces, or downloads | `references/web-recipes.md` |
 
