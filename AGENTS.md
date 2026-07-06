@@ -13,6 +13,12 @@ provider-specific adapter.
   policy.
 - `skills/<skill-name>/references/`: detailed guidance loaded on demand.
 - `skills/<skill-name>/scripts/`: optional self-contained scripts.
+- `marketplace.json`: Git-backed marketplace entry for Codex plugin
+  installation from GitHub.
+- `.agents/plugins/marketplace.json`: repo-local marketplace entry for local
+  development.
+- `plugins/web-skills/`: Codex plugin package. Its `skills/` directory is a
+  synced copy of the standalone `skills/` source.
 
 ## Skill Authoring Rules
 
@@ -24,6 +30,8 @@ provider-specific adapter.
   `policy.allow_implicit_invocation`.
 - Do not commit `node_modules`, `dist`, `build`, generated caches, secrets, or
   product-private credentials.
+- After changing `skills/`, run `bash scripts/sync-plugin-skills.sh` so the
+  plugin package stays aligned.
 
 ## Validation
 
@@ -31,6 +39,11 @@ Before committing:
 
 ```bash
 git diff --check
+bash scripts/sync-plugin-skills.sh
+git diff --exit-code -- plugins/web-skills/skills
+bunx skills-ref validate ./skills/web-flow-testing
+uv run --with pyyaml /Users/deniffer/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py ./plugins/web-skills
+cmp -s marketplace.json .agents/plugins/marketplace.json
 git status --short --branch
 ```
 

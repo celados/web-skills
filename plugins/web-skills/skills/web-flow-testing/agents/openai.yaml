@@ -1,0 +1,6 @@
+interface:
+  display_name: "Web Flow Testing"
+  short_description: "Test web app flows with browser evidence and backend truth."
+  default_prompt: "Use $web-flow-testing to verify a web product flow with browser evidence, CLI setup, and durable backend checks."
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,43 @@
+{
+  "name": "web-skills",
+  "version": "0.1.0",
+  "description": "Reusable Codex skills for web product engineering workflows.",
+  "author": {
+    "name": "Celados",
+    "url": "https://github.com/celados"
+  },
+  "homepage": "https://github.com/celados/web-skills",
+  "repository": "https://github.com/celados/web-skills",
+  "license": "MIT",
+  "keywords": [
+    "web",
+    "skills",
+    "codex",
+    "testing",
+    "flow-testing",
+    "frontend",
+    "backend",
+    "product-engineering"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Web Skills",
+    "shortDescription": "Reusable workflows for web product engineering.",
+    "longDescription": "Web Skills packages focused Codex workflows for web application development. The first skill, web-flow-testing, verifies product flows by combining browser evidence, CLI setup, test identities, and durable backend state checks. Future skills can cover backend business modeling, frontend feature-state design, and other web product engineering practices.",
+    "developerName": "Celados",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/celados/web-skills",
+    "defaultPrompt": [
+      "Verify this web app flow with browser evidence and backend checks",
+      "Test the auth and checkout flow in staging",
+      "Design a CLI-backed smoke test for this user journey"
+    ],
+    "brandColor": "#2563EB",
+    "screenshots": []
+  }
+}
